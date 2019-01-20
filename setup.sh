@@ -3,6 +3,7 @@ cat <<EOF
 # This is a in-testing setup script built from the README instructions. 
 # Run this at your own risk, only tested on Debian 9 and does not complete the process
 # This script is not clean yet and does not check if things are already running. 
+# Some of this script will run as root and will install applications on your machine. 
 EOF
 
 confirm() {
@@ -95,6 +96,31 @@ curl  --header content-type:application/json \
       }' \
       http://localhost:7474/ehri/classes/Group
 
+# Add testUser to profile
+curl  --header content-type:application/json \
+      --header X-User:admin \
+      --data-binary '{
+           "id":"user000001", 
+           "type":"UserProfile",
+           "data":{"identifier": "user000001", "name":"testUser"},
+           "relationships": {
+           "belongsTo": [
+                    "id": "portal",
+                    "type": "Group",
+                    "data": {
+                        "identifier": "portal",
+                        "name": "Portal"
+                    },
+                    "meta": {
+                        "childCount": 1
+                    },
+                    "relationships": {}
+                ]
+            }
+      }' \
+      http://localhost:7474/ehri/classes/UserProfile
+
+
 # Install postfix or a suitable email-sending program
 if [[ ! $(command -v postfix ) ]]; then
 	sudo apt install -y postfix
@@ -107,7 +133,7 @@ if [[ ! $(command -v npm) ]]; then
 fi
 
 if [[ ! $(command -v java) ]]; then
-    sudo apt install default-jdk default-jre
+    sudo apt install -y openjdk-8-jdk openjdk-8-jre
 fi
 
 # Install [sbt](http://www.scala-sbt.org/release/docs/Setup.html)
@@ -128,43 +154,38 @@ if [[ ! $(command -v sbt) ]]; then
     sudo apt install -y sbt
 fi
 
-sbt run
 
-exit 0
-
-# Go to localhost:9000
-www-browser localhost:9000
-cat <<EOF
-    When you get a message about database evolutions being required, click "Apply this script now"
-    Create an account at http://localhost:9000/login
-    Get your new account ID, which can be found by looking at the URL for you account on the people page (`http://localhost:9000/people`). It should be `user000001`.
-    Make developer account an admin on the backend (replace `{userID}` with actual ID):
-EOF
+#cat <<EOF
+#    When you get a message about database evolutions being required, click "Apply this script now"
+#    Create an account at http://localhost:9000/login
+#    Get your new account ID, which can be found by looking at the URL for you account on the people page (`http://localhost:9000/people`). It should be `user000001`.
+#    Make developer account an admin on the backend (replace `{userID}` with actual ID):
+#EOF
 userID="user000001"
 
-exit 0
- 
 curl -X POST \
         --header X-User:admin \
         http://localhost:7474/ehri/classes/Group/admin/${userID}
  
-cat <<EOF
-make account verified and staff on the front end (replace {userId} with actual ID and use default password 'changeme'):
-EOF
+#cat <<EOF
+#make account verified and staff on the front end (replace {userId} with actual ID and use default password 'changeme'):
+#EOF
  
 psql -hlocalhost -Udocview docview \
         -c "update users set verified = true, staff = true where id = '${userID}'"
 
-cat <<EOF
-At this point you should be able to access the admin pages and create data, e.g:
+#cat <<EOF
+#At this point you should be able to access the admin pages and create data, e.g:
+#
+# - create a country record at `http://localhost:9000/admin/countries/create`. You only have to provide the country code, e.g. "us"
+# - create an institution in that country
+# - create archival records in the institution
+#
+#NOTE: certain functionality also depends on a valid AWS S3 configuration set in the `conf/aws.conf` file.
+#Use the `conf/aws.conf.example` as a template.
+#EOF 
 
- - create a country record at `http://localhost:9000/admin/countries/create`. You only have to provide the country code, e.g. "us"
- - create an institution in that country
- - create archival records in the institution
-
-NOTE: certain functionality also depends on a valid AWS S3 configuration set in the `conf/aws.conf` file.
-Use the `conf/aws.conf.example` as a template.
-EOF 
+sudo sbt run
 
 ### Testing
 # 
